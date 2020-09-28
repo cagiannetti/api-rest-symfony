@@ -181,23 +181,16 @@ class UserController extends AbstractController
                 $pwd = hash('sha256', $password);
 
                 // Si todo es válido, llamaremos a un servicio para identificar a un usuario (jwt, devolverá token ó un objeto)
-
-                // Crear servicio de jwt
-                $jwt_auth->signup();
-
-
-
-                $data = [
-                    'message' => 'Validación correcta',
-                    'messge2' => $jwt_auth->signup()
-                ];
-            }else{
-                $data = [
-                    'message' => 'Validación innnn-correcta'
-                ];
-            }        
+                if($gettoken){
+                    $signup = $jwt_auth->signup($email, $pwd, $gettoken);
+                }else{
+                    $signup = $jwt_auth->signup($email, $pwd);
+                }
+                // Devolvemos respuesta de éxito
+                return new JsonResponse($signup);
+            }
         }
-        // Devolvemos respuesta
+        // Devolvemos respuesta trucha
         return $this->resjson($data);
     }
 }
