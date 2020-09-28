@@ -193,4 +193,87 @@ class UserController extends AbstractController
         // Devolvemos respuesta trucha
         return $this->resjson($data);
     }
+
+    public function edit(Request $request, JwtAuth $jwt_auth){
+
+        // Recoger la cabecera de autenticación
+        $token = $request->headers->get('Authorization');
+
+        // Crear método para comprobar si el token es correcto
+        $authCheck = $jwt_auth->checkToken($token);
+
+        //Array de respuesta por defecto
+            $data = [
+            'status' => 'error',
+            'code' => 400,
+            'message' => 'Usuario no actualizado'
+        ];
+
+        // Si es correcto hacer la actualización del usuario
+        if($authCheck){
+            // Conseguir el entity manager
+            $em = $this->getDoctrine()->getManager();
+
+            // Conseguir datos del usuario identificado
+            $identity= $jwt_auth->checkToken($token, true);
+
+            // Conseguir el usuario a actualzar
+            $user_repo = $this->getDoctrine()->getRepository(User::class);
+            $user = $user_repo->findOneBy([
+                'id' => $identity->sub
+            ]);
+
+            // Recoger los datos por post
+            $json = $request->get('json', null);
+            $params = json_decode($json);
+
+            // Comprobar y validar los datos
+            if(!empty($json)){
+                $name = (!empty($params->name)) ? $params->name : null;
+                $surname = (!empty($params->surname)) ? $params->surname : null;
+                $email = (!empty($params->email)) ? $params->email : null;
+
+                $validator = Validation::createValidator();
+                $validate_email = $validator->validate($email, [
+                    new Email()
+                ]);
+
+                if(!empty($email) && count($validate_email) == 0 && !empty($name) && !empty($surname)){
+                    // Asignar nuevos datos al objeto de usuario
+                    $user->setName($name);
+                    $user->setSurname($surname);
+                    $user->setEmail($email);
+
+                    // Comprobar duplicados
+                    $isset_user = $user_repo->findBy([
+                        'email' => $email
+                    ]);
+
+                    if(count($isset_user) == 0 || $identity->email == $email){
+                        // Guardar cambios en la bd
+                        $em->persist($user);
+                        $em->flush();
+
+                        $data = [
+                            'status' => 'success',
+                            'code' => 200,
+                            'message' => 'Usuario actualizado',
+                            'user' => $user
+                        ];
+
+                    }else{
+                        $data = [
+                            'status' => 'error',
+                            'code' => 400,
+                            'message' => 'No puedes usar ese email, Usuario ya existe'
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Devolvemos respuesta
+        return $this->resjson($data);
+
+    }
 }

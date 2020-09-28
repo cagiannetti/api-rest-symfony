@@ -59,8 +59,37 @@ class JwtAuth{
 
         }
 
-
         // Devolver datos, la variable $data puede tener 3 estados según lo fuimos cargando durante todo el método
         return $data;
+    }
+
+    public function checkToken($jwt, $identity = false){
+
+        $auth = false; //a lo largo del flujo se irá cambiando este valor
+
+        try{
+            $decoded = JWT::decode($jwt, $this->key, ['HS256']);
+        }catch(\UnexpectedValueException $e){
+            $auth = false;
+        }catch(\DomainException $e){
+            $auth = false;
+        }
+
+        
+        if (isset($decoded) && !empty($decoded) && is_object($decoded) && isset($decoded->sub)){
+          
+            $auth = true;
+        }else{
+            $auth = false;
+        }
+
+        if($identity !== false){
+            return $decoded;
+        }else{
+            return $auth;
+        }
+
+        
+
     }
 }
