@@ -9,8 +9,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Validator\Validation;
 use Symfony\Component\Validator\Constraints\Email;
 
+
 use App\Entity\User; //cargamos las entidades
 use App\Entity\video;
+use App\Services\JwtAuth;
 
 
 
@@ -147,6 +149,55 @@ class UserController extends AbstractController
 
         // Devolver la respuesta en json
         //return new JsonResponse($data);
+        return $this->resjson($data);
+    }
+
+    public function login(Request $request, JwtAuth $jwt_auth){
+        // Recibir los datos por post
+        $json = $request->get('json', null);
+        $params = json_decode($json);
+
+        // Array de datos por defeto para devolver
+        $data = [
+            'status' => 'error',
+            'code' => 200,
+            'message' => 'El usuario no se ha podido identificar'
+        ];
+
+        // Comprobar y validar datos
+        if($json != null){
+
+            $email = (!empty($params->email)) ? $params->email : null;
+            $password = (!empty($params->password)) ? $params->password : null;
+            $gettoken = (!empty($params->gettoken)) ? $params->gettoken : null;
+
+            $validator = Validation::createValidator();
+            $validate_email = $validator->validate($email,[
+                new Email()
+            ]);
+
+            if(!empty($email) && !empty($password) && count($validate_email) == 0){
+                 // cifrar la contraseña
+                $pwd = hash('sha256', $password);
+
+                // Si todo es válido, llamaremos a un servicio para identificar a un usuario (jwt, devolverá token ó un objeto)
+
+                // Crear servicio de jwt
+                $jwt_auth->signup();
+
+
+
+                $data = [
+                    'message' => 'Validación correcta',
+                    'messge2' => $jwt_auth->signup()
+                ];
+            }else{
+                $data = [
+                    'message' => 'Validación innnn-correcta'
+                ];
+            }        
+        }
+        // Devolvemos respuesta
         return $this->resjson($data);
     }
 }
