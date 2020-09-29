@@ -9,10 +9,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Validator\Validation;
 use Symfony\Component\Validator\Constraints\Email;
 
+use Knp\Component\Pager\PaginatorInterface;
 
 use App\Entity\User; //cargamos las entidades
 use App\Entity\video;
-use App\Services\JwtAuth;   
+use App\Services\JwtAuth;
 
 class VideoController extends AbstractController
 {
@@ -119,9 +120,70 @@ class VideoController extends AbstractController
                 }
             }
         }
+        // Devolver respuesta
+        return $this->resjson($data);
+    }
+
+    public function videos(Request $request, JwtAuth $jwt_auth, PaginatorInterface $paginator){
+
+        // Recoger la cabecera de autenticación
+        $token = $request->headers->get('Authorization', null);
+
+        // Comprobar el token
+        $authCheck = $jwt_auth->checkToken($token);
+
+        // Si es válido...
+        if($authCheck){
+            
+            // Conseguir la identidad del usuario
+            $identity = $jwt_auth->checkToken($token, true);
+
+            /*  Configurar el bundle de paginación: 
+                hecho en los archivos services.yaml y bundles.php*/
+            
+            $em = $this->getDoctrine()->getManager();
+            
+            // Hacer consulta para paginar, utiliza lenguaje dql, es como sql pero utlizando objetos de doctrine
+            $dql = "SELECT v FROM App\Entity\Video v WHERE v.user = {$identity->sub} ORDER BY v.id DESC";
+            $query = $em->createQuery($dql);
+
+            // Recoger el parámetro page de la url que viene por get, usa getInt porque lo que viene esun número
+            $page = $request->query->getInt('page', 1);
+            $items_per_page = 5;
+
+            // Invocar método de paginación
+            $pagination = $paginator->paginate($query, $page, $items_per_page);
+            $total = $pagination->getTotalItemCount();
+            
+            // Datos de respuesta de éxito
+            
+            $data = [
+                'status' => 'success',
+                'code' => 200,
+                'total_items_count' => $total,
+                'page' => $page,
+                'items_per_page' => $items_per_page,
+                'total_pages' => ceil($total / $items_per_page),
+                'videos' => $pagination,
+                'user' => $identity,
+                'user_id' => $identity->sub
+
+            ];
+
+        }else{
+
+            $data = [
+                'status' => 'error',
+                'code' => 404,
+                'message' => 'No se pueden listar los videos en este momento'
+            ];
+
+        }
+
+
+
 
         // Devolver respuesta
         return $this->resjson($data);
-
     }
 }
